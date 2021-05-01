@@ -4,10 +4,14 @@ import os
 class Config(object):
     SECRET_KEY = os.urandom(64).hex()
 
-    NGINX_PATH = '/usr/local/stapply/nginx/'
-    NGINX_SBIN = os.path.join(NGINX_PATH, 'sbin')
+    # NGINX_PATH = '/etc/nginx'
+    NGINX_PATH = '/Users/devon/Desktop/project/python/nginx-ui/nginx'
+    NGINX_SBIN = '/usr/local/stapply/nginx/sbin/'
     MAIN_CONFIG_PATH = os.path.join(NGINX_PATH, 'conf')
-    DOMAIN_CONFIG_PATH = os.path.join(NGINX_PATH, 'conf.d')
+    # DOMAIN_CONFIG_PATH = os.path.join(NGINX_PATH, 'conf.d')
+    MAIN_CONFIG_DIR = 'conf'
+    DOMAIN_CONFIG_DIR = 'conf.d'
+    MAIN_CONFIG_NAME = 'nginx.conf'
     ENV_LIST = ['dev', 'test', 'pre', 'prod']
 
     @staticmethod

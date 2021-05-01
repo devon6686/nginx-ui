@@ -1,12 +1,12 @@
-<div class="ui top attached segment">
+<div class="ui top attached segment" id="main_config_name">
     <div class="ui two column grid">
 
         <div class="column">
-            <h1 class="ui header">{{ name }}</h1>
+            <h1 class="ui header" >{{ env }} {{ name }}</h1>
         </div>
 
         <div class="column">
-            <button class="ui right floated labeled icon button" onclick="update_config('{{ name }}')" tabindex="0">
+            <button class="ui right floated labeled icon button" onclick="update_env_config('{{ env }}-{{ name }}')" tabindex="0">
                 <i class="play icon"></i>
                 Apply
             </button>
@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<div class="ui attached segment">
+<div class="ui attached segment" id="main_config_content">
     <div class="ui form">
 
         <div class="field">

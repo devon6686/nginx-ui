@@ -1,12 +1,14 @@
 <div class="column">
+    <div class="column">
+        <h1 class="env header" id="env-header">{{ env }}</h1>
+    </div>
 
     <div class="ui cards" id="domain_cards">
         {% if sites_available %}
         {% for domain in sites_available %}
         <div class="card">
             <div class="content">
-
-                <a class="header" onclick="fetch_domain('{{ domain['name'] }}')">
+                    <a class="header" onclick="fetch_env_domain( '{{ env }}-{{ domain['name'] }}')">
                     {% if domain['name'] in sites_enabled %}
                     <i class="big circle right floated green icon"></i>
                     {% else %}

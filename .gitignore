@@ -12,6 +12,7 @@
 pyvenv.cfg
 .venv
 pip-selfcheck.json
+nginx
 
 ### macOS template
 # General

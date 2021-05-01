@@ -28,6 +28,16 @@
                     Nginx UI
                 </a>
 
+                <div class="ui dropdown item" id="env_edit_config">
+                    Environment
+                    <i class="dropdown icon"></i>
+                    <div class="menu">
+                        {% for env in envs %}
+                        <div class="env item">{{ env }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
                 <div class="ui dropdown item" id="edit_config">
                     Main Config
                     <i class="dropdown icon"></i>
@@ -46,8 +56,8 @@
 
                 <div class="mobile hidden right item">
                     <div class="ui action input">
-                        <input type="text" placeholder="example.com" id="add_domain">
-                        <button class="ui green button" onclick="add_domain()" tabindex="0">
+                        <input type="text" placeholder="shantaijk.cn" id="add_env_domain">
+                        <button class="ui green button" onclick="add_env_domain()" tabindex="0">
                             Add
                         </button>
                     </div>
@@ -55,12 +65,11 @@
 
                 <div class="mobile hidden right item">
                     <div class="ui action">
-                        <button class="ui green button" onclick="reload_nginx()" tabindex="0">
+                        <button class="ui red button" id="reload-button" onclick="reload_nginx()" tabindex="0">
                             Reload
                         </button>
                     </div>
                 </div>
-
             </div>
 
         </div>

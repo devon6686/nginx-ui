@@ -46,19 +46,57 @@ def post_config(name: str):
     return flask.make_response({'success': True}), 200
 
 
-@api.route('/environment', methods=['GET'])
-def get_environment():
-    env_list = flask.current_app.config['ENV_LIST']
-    return flask.render_template('environment.html', envs=env_list), 200
+@api.route('/env/config/<env>',  methods=['GET'])
+def get_env_config(env: str):
+    """
+    Reads the file with the corresponding name that was passed.
+
+    :param env: Configuration file name
+    :type env: str
+
+    :return: Rendered HTML document with content of the configuration file.
+    :rtype: str
+    """
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    main_config_dir = flask.current_app.config['MAIN_CONFIG_DIR']
+    main_config_name = flask.current_app.config['MAIN_CONFIG_NAME']
+    main_config_path = os.path.join(nginx_path, env, main_config_dir, main_config_name)
+    with io.open(main_config_path, 'r') as f:
+        _file = f.read()
+
+    return flask.render_template('config.html', env=env, name=main_config_name, file=_file), 200
 
 
-@api.route('/ng-reload', methods=['POST'])
+@api.route('/env/config/<name>', methods=['POST'])
+def post_env_config(name: str):
+    """
+    Accepts the customized configuration and saves it in the configuration file with the supplied name.
+
+    :param name: Configuration file name
+    :type name: str
+
+    :return:
+    :rtype: werkzeug.wrappers.Response
+    """
+    content = flask.request.get_json()
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    main_config_dir = flask.current_app.config['MAIN_CONFIG_DIR']
+    # main_config_name = flask.current_app.config['MAIN_CONFIG_NAME']
+    env, filename = name.split('-', maxsplit=1)
+    main_config_path = os.path.join(nginx_path, env, main_config_dir, filename)
+    with io.open(main_config_path, 'w') as f:
+        f.write(content['file'])
+
+    return flask.make_response({'success': True}), 200
+
+
+@api.route('/ng-reload', methods=['PUT'])
 def reload_nginx():
     nginx_sbin_path = flask.current_app.config['NGINX_SBIN']
     nginx_sbin = os.path.join(nginx_sbin_path, 'nginx')
-    check_cmd = f"sudo {nginx_sbin} -t"
-    reload_cmd = f"sudo {nginx_sbin} -s reload"
-    ret = subprocess.run(check_cmd, shell=True, stderr=subprocess.PIPE)
+    check_cmd = f"{nginx_sbin} -t"
+    reload_cmd = f"{nginx_sbin} -s reload"
+    ret = subprocess.run(check_cmd, shell=True, capture_output=True)
     if ret.returncode == 0:
         subprocess.run(reload_cmd, shell=True)
         return flask.make_response({'ret': 'success'}), 200
@@ -104,6 +142,46 @@ def get_domains():
     return flask.render_template('domains.html', sites_available=sites_available, sites_enabled=sites_enabled), 200
 
 
+@api.route('/env/domains/<env>', methods=['GET'])
+def get_env_domains(env: str):
+    """
+    Reads all files from the configuration file directory and checks the state of the site configuration.
+
+    :return: Rendered HTML document with the domains
+    :rtype: str
+    """
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    domain_dir = flask.current_app.config['DOMAIN_CONFIG_DIR']
+    config_path = os.path.join(nginx_path, env, domain_dir)
+    sites_available = []
+    sites_enabled = []
+
+    for _ in os.listdir(config_path):
+
+        if os.path.isfile(os.path.join(config_path, _)):
+            domain, state = _.rsplit('.', 1)
+
+            if state == 'conf':
+                time = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(config_path, _)))
+
+                sites_available.append({
+                    'name': domain,
+                    'time': time
+                })
+                sites_enabled.append(domain)
+            elif state == 'disabled':
+                time = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(config_path, _)))
+
+                sites_available.append({
+                    'name': domain.rsplit('.', 1)[0],
+                    'time': time
+                })
+
+    # sort sites by name
+    sites_available = sorted(sites_available, key=lambda _: _['name'])
+    return flask.render_template('domains.html', env=env, sites_available=sites_available, sites_enabled=sites_enabled), 200
+
+
 @api.route('/domain/<name>', methods=['GET'])
 def get_domain(name: str):
     """
@@ -116,7 +194,7 @@ def get_domain(name: str):
     :return: Rendered HTML document with the domain
     :rtype: str
     """
-    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
+    config_path = flask.current_app.config['NGINX_PATH']
     _file = ''
     enabled = True
 
@@ -238,4 +316,156 @@ def enable_domain(name: str):
     return flask.make_response({'success': True}), 200
 
 
+@api.route('/env/domain/<name>', methods=['GET'])
+def get_env_domain(name: str):
+    """
+    Takes the name of the domain configuration file and
+    returns a rendered HTML with the current configuration of the domain.
+
+    :param name: The domain name that corresponds to the name of the file.
+    :type name: str
+
+    :return: Rendered HTML document with the domain
+    :rtype: str
+    """
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    domain_dir = flask.current_app.config['DOMAIN_CONFIG_DIR']
+    env, filename = name.split('-')
+    config_path = os.path.join(nginx_path, env, domain_dir)
+    _file = ''
+    enabled = True
+
+    for _ in os.listdir(config_path):
+
+        if os.path.isfile(os.path.join(config_path, _)):
+            if _.startswith(filename):
+                domain, state = _.rsplit('.', 1)
+
+                if state == 'disabled':
+                    enabled = False
+
+                with io.open(os.path.join(config_path, _), 'r') as f:
+                    _file = f.read()
+
+                break
+
+    return flask.render_template('domain.html', name=filename, file=_file, enabled=enabled), 200
+
+
+@api.route('/env/domain/<name>', methods=['POST'])
+def post_env_domain(name: str):
+    """
+    Creates the configuration file of the domain.
+
+    :param name: The domain name that corresponds to the name of the file.
+    :type name: str
+
+    :return: Returns a status about the success or failure of the action.
+    """
+    # config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    domain_dir = flask.current_app.config['DOMAIN_CONFIG_DIR']
+    env, filename = name.split('-')
+    config_path = os.path.join(nginx_path, env, domain_dir)
+
+    new_domain = flask.render_template('new_domain.j2', name=filename)
+    filename = filename + '.conf.disabled'
+
+    try:
+        with io.open(os.path.join(config_path, filename), 'w') as f:
+            f.write(new_domain)
+
+        response = flask.jsonify({'success': True}), 201
+    except Exception as ex:
+        response = flask.jsonify({'success': False, 'error_msg': ex}), 500
+
+    return response
+
+
+@api.route('/env/domain/<name>', methods=['DELETE'])
+def delete_env_domain(name: str):
+    """
+    Deletes the configuration file of the corresponding domain.
+
+    :param name: The domain name that corresponds to the name of the file.
+    :type name: str
+
+    :return: Returns a status about the success or failure of the action.
+    """
+    # config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    domain_dir = flask.current_app.config['DOMAIN_CONFIG_DIR']
+    env, filename = name.split('-', maxsplit=1)
+    config_path = os.path.join(nginx_path, env, domain_dir)
+    removed = False
+
+    for _ in os.listdir(config_path):
+
+        if os.path.isfile(os.path.join(config_path, _)):
+            if _.startswith(filename):
+                remove_app_path = os.path.join(config_path, _)
+                os.rename(remove_app_path, remove_app_path + ".bak")
+                removed = not os.path.exists(remove_app_path)
+                break
+    if removed:
+        return flask.jsonify({'success': True}), 200
+    else:
+        return flask.jsonify({'success': False}), 400
+
+
+@api.route('/env/domain/<name>', methods=['PUT'])
+def put_env_domain(name: str):
+    """
+    Updates the configuration file with the corresponding domain name.
+
+    :param name: The domain name that corresponds to the name of the file.
+    :type name: str
+
+    :return: Returns a status about the success or failure of the action.
+    """
+    content = flask.request.get_json()
+    # config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    domain_dir = flask.current_app.config['DOMAIN_CONFIG_DIR']
+    env, filename = name.split('-', maxsplit=1)
+    config_path = os.path.join(nginx_path, env, domain_dir)
+
+    for _ in os.listdir(config_path):
+
+        if os.path.isfile(os.path.join(config_path, _)):
+            if _.startswith(filename):
+                with io.open(os.path.join(config_path, _), 'w') as f:
+                    f.write(content['file'])
+
+    return flask.make_response({'success': True}), 200
+
+
+@api.route('/env/domain/<name>/enable', methods=['POST'])
+def enable_env_domain(name: str):
+    """
+    Activates the domain in Nginx so that the configuration is applied.
+
+    :param name: The domain name that corresponds to the name of the file.
+    :type name: str
+
+    :return: Returns a status about the success or failure of the action.
+    """
+    content = flask.request.get_json()
+    # config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
+    nginx_path = flask.current_app.config['NGINX_PATH']
+    domain_dir = flask.current_app.config['DOMAIN_CONFIG_DIR']
+    env, filename = name.split('-', maxsplit=1)
+    config_path = os.path.join(nginx_path, env, domain_dir)
+
+    for _ in os.listdir(config_path):
+
+        if os.path.isfile(os.path.join(config_path, _)):
+            if _.startswith(filename):
+                if content['enable']:
+                    new_filename, disable = _.rsplit('.', 1)
+                    os.rename(os.path.join(config_path, _), os.path.join(config_path, new_filename))
+                else:
+                    os.rename(os.path.join(config_path, _), os.path.join(config_path, _ + '.disabled'))
+
+    return flask.make_response({'success': True}), 200
 

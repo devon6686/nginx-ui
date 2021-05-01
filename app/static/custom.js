@@ -4,14 +4,23 @@ $(document).ready(function() {
 
     $('.config.item').click(function() {
         var name = $(this).html();
-        load_config(name);
+        let env = document.getElementsByClassName('env item selected')[0] ? document.getElementsByClassName('env item selected')[0].innerText: 'dev';
+        load_env_config(env);
     });
 
-    $('#domains').click(function() { load_domains() });
+    $('.env.item').click(function() {
+        $('#env-header').hide();
+        $('#domain').hide();
+        $('#domain_cards').fadeIn();
+        $('#main_config_name').hide();
+        $('#main_config_content').hide();
+    });
 
-
-    load_domains();
-
+    $('#domains').click(function() {
+        let env = document.getElementsByClassName('env item selected')[0] ? document.getElementsByClassName('env item selected')[0].innerText: 'dev';
+//        console.log(0, env);
+        load_env_domains(env);
+    });
 });
 
 function load_domains() {
@@ -21,8 +30,15 @@ function load_domains() {
     });
 }
 
+function load_env_domains(env) {
+    $.when(fetch_env_html('api/env/domains/' + env)).then(function() {
+        $('#domain').hide();
+        $('#domain_cards').fadeIn();
+    });
+}
+
 function add_domain() {
-    var name = $('#add_domain').val();
+    let name = $('#add_domain').val();
     $('#add_domain').val('');
 
     $.ajax({
@@ -32,7 +48,23 @@ function add_domain() {
             201: function() { fetch_domain(name) }
         }
     });
+}
 
+function add_env_domain() {
+    let name = $('#add_env_domain').val();
+    let env = document.getElementsByClassName('env item selected')[0] ? document.getElementsByClassName('env item selected')[0].innerText: 'dev';
+    let env_domain = env + '-' + name;
+    console.log("add env domain:", env_domain);
+
+    $('#add_env_domain').val('');
+
+    $.ajax({
+        type: 'POST',
+        url: '/api/env/domain/' + env_domain,
+        statusCode: {
+            201: function() { fetch_env_domain(env_domain) }
+        }
+    });
 }
 
 function reload_nginx() {
@@ -46,7 +78,6 @@ function reload_nginx() {
 }
 
 function enable_domain(name, enable) {
-
     $.ajax({
         type: 'POST',
         url: '/api/domain/' + name + '/enable',
@@ -78,7 +109,6 @@ function update_domain(name) {
             200: function() { setTimeout(function(){ fetch_domain(name) }, 400) }
         }
     });
-
 }
 
 function fetch_domain(name) {
@@ -95,6 +125,7 @@ function fetch_domain(name) {
     });
 
 }
+
 
 function remove_domain(name) {
 
@@ -114,7 +145,6 @@ function remove_domain(name) {
 }
 
 function fetch_html(url) {
-
     fetch(url)
     .then(function(response) {
         response.text().then(function(text) {
@@ -124,8 +154,8 @@ function fetch_html(url) {
     .catch(function(error) {
         console.error(error);
     });
-
 }
+
 
 function update_config(name) {
     var _file = $('#file-content').val();
@@ -149,11 +179,10 @@ function update_config(name) {
             }
         }
     });
-
 }
 
-function load_config(name) {
 
+function load_config(name) {
     fetch('api/config/' + name)
     .then(function(response) {
         response.text().then(function(text) {
@@ -166,3 +195,134 @@ function load_config(name) {
 
 }
 
+
+function fetch_env_domain(name) {
+
+    fetch('api/env/domain/' + name)
+    .then(function(response) {
+        response.text().then(function(text) {
+            $('#domain').html(text).fadeIn();
+            $('#domain_cards').hide();
+        });
+    })
+    .catch(function(error) {
+        console.error(error);
+    });
+
+}
+
+
+function fetch_env_html(url) {
+    fetch(url)
+    .then(function(response) {
+        response.text().then(function(text) {
+            $('#content').html(text);
+        });
+    })
+    .catch(function(error) {
+        console.error(error);
+    });
+}
+
+function update_env_domain(name) {
+    var _file = $('#file-content').val();
+    $('#dimmer').addClass('active');
+
+    let env = document.getElementById('env-header').innerText;
+    console.log("update", env);
+
+    let domain_name = env + '-' + name;
+    $.ajax({
+        type: 'PUT',
+        url: '/api/env/domain/' + domain_name,
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify({
+            file: _file
+        }),
+        statusCode: {
+            200: function() { setTimeout(function(){ fetch_env_domain(domain_name) }, 400) }
+        }
+    });
+}
+
+
+function remove_env_domain(name) {
+    let env = document.getElementById('env-header').innerText || "dev";
+    let domain_name = env + '-' + name;
+    console.log("remove", env, domain_name);
+
+    $.ajax({
+        type: 'DELETE',
+        url: '/api/env/domain/' + domain_name,
+        statusCode: {
+            200: function() {
+                load_env_domains(env);
+            },
+            400: function() {
+                alert('Deleting not possible');
+            }
+        }
+    });
+
+}
+
+
+function enable_env_domain(name, enable) {
+    let env = document.getElementById('env-header').innerText || "dev";
+    let domain_name = env + '-' + name;
+    console.log("enable", env, domain_name);
+
+    $.ajax({
+        type: 'POST',
+        url: '/api/env/domain/' + domain_name + '/enable',
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify({
+            enable: enable
+        }),
+        statusCode: {
+            200: function() { fetch_env_domain(domain_name); }
+        }
+    });
+
+}
+
+
+function update_env_config(name) {
+    var _file = $('#file-content').val();
+    $('#dimmer').addClass('active');
+
+    $.ajax({
+        type: 'POST',
+        url: '/api/env/config/' + name,
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify({
+            file: _file
+        }),
+        statusCode: {
+            200: function() {
+
+                setTimeout(function() {
+                    $('#dimmer').removeClass('active');
+                }, 450);
+
+            }
+        }
+    });
+}
+
+
+function load_env_config(env) {
+    let url = 'api/env/config/' + env ;
+    fetch(url)
+    .then(function(response) {
+        response.text().then(function(text) {
+            $('#content').html(text);
+        });
+    })
+    .catch(function(error) {
+        console.error(error);
+    });
+}
