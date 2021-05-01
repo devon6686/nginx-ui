@@ -1,5 +1,6 @@
 $(document).ready(function() {
     $('.ui.dropdown').dropdown();
+    $('.env.ui.dropdown').dropdown();
 
     $('.config.item').click(function() {
         var name = $(this).html();
@@ -7,6 +8,7 @@ $(document).ready(function() {
     });
 
     $('#domains').click(function() { load_domains() });
+
 
     load_domains();
 
@@ -31,6 +33,16 @@ function add_domain() {
         }
     });
 
+}
+
+function reload_nginx() {
+    $.ajax({
+        type: 'POST',
+        url: '/api/ng-reload'
+//        statusCode: {
+//            201: "reload"
+//        }
+    });
 }
 
 function enable_domain(name, enable) {
@@ -153,3 +165,4 @@ function load_config(name) {
     });
 
 }
+

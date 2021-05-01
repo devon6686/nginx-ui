@@ -2,6 +2,7 @@ import datetime
 import io
 import os
 import flask
+import subprocess
 
 from app.api import api
 
@@ -17,7 +18,7 @@ def get_config(name: str):
     :return: Rendered HTML document with content of the configuration file.
     :rtype: str
     """
-    nginx_path = flask.current_app.config['NGINX_PATH']
+    nginx_path = flask.current_app.config['MAIN_CONFIG_PATH']
 
     with io.open(os.path.join(nginx_path, name), 'r') as f:
         _file = f.read()
@@ -37,12 +38,32 @@ def post_config(name: str):
     :rtype: werkzeug.wrappers.Response
     """
     content = flask.request.get_json()
-    nginx_path = flask.current_app.config['NGINX_PATH']
+    nginx_path = flask.current_app.config['MAIN_CONFIG_PATH']
 
     with io.open(os.path.join(nginx_path, name), 'w') as f:
         f.write(content['file'])
 
     return flask.make_response({'success': True}), 200
+
+
+@api.route('/environment', methods=['GET'])
+def get_environment():
+    env_list = flask.current_app.config['ENV_LIST']
+    return flask.render_template('environment.html', envs=env_list), 200
+
+
+@api.route('/ng-reload', methods=['POST'])
+def reload_nginx():
+    nginx_sbin_path = flask.current_app.config['NGINX_SBIN']
+    nginx_sbin = os.path.join(nginx_sbin_path, 'nginx')
+    check_cmd = f"sudo {nginx_sbin} -t"
+    reload_cmd = f"sudo {nginx_sbin} -s reload"
+    ret = subprocess.run(check_cmd, shell=True, stderr=subprocess.PIPE)
+    if ret.returncode == 0:
+        subprocess.run(reload_cmd, shell=True)
+        return flask.make_response({'ret': 'success'}), 200
+    else:
+        return flask.make_response({'ret': str(ret.stderr)}), 400
 
 
 @api.route('/domains', methods=['GET'])
@@ -53,7 +74,7 @@ def get_domains():
     :return: Rendered HTML document with the domains
     :rtype: str
     """
-    config_path = flask.current_app.config['CONFIG_PATH']
+    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
     sites_available = []
     sites_enabled = []
 
@@ -95,7 +116,7 @@ def get_domain(name: str):
     :return: Rendered HTML document with the domain
     :rtype: str
     """
-    config_path = flask.current_app.config['CONFIG_PATH']
+    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
     _file = ''
     enabled = True
 
@@ -126,7 +147,7 @@ def post_domain(name: str):
 
     :return: Returns a status about the success or failure of the action.
     """
-    config_path = flask.current_app.config['CONFIG_PATH']
+    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
     new_domain = flask.render_template('new_domain.j2', name=name)
     name = name + '.conf.disabled'
 
@@ -151,17 +172,17 @@ def delete_domain(name: str):
 
     :return: Returns a status about the success or failure of the action.
     """
-    config_path = flask.current_app.config['CONFIG_PATH']
+    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
     removed = False
 
     for _ in os.listdir(config_path):
 
         if os.path.isfile(os.path.join(config_path, _)):
             if _.startswith(name):
-                os.remove(os.path.join(config_path, _))
-                removed = not os.path.exists(os.path.join(config_path, _))
+                remove_app_path = os.path.join(config_path, _)
+                os.rename(remove_app_path, remove_app_path + ".bak")
+                removed = not os.path.exists(remove_app_path)
                 break
-
     if removed:
         return flask.jsonify({'success': True}), 200
     else:
@@ -179,7 +200,7 @@ def put_domain(name: str):
     :return: Returns a status about the success or failure of the action.
     """
     content = flask.request.get_json()
-    config_path = flask.current_app.config['CONFIG_PATH']
+    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
 
     for _ in os.listdir(config_path):
 
@@ -202,7 +223,7 @@ def enable_domain(name: str):
     :return: Returns a status about the success or failure of the action.
     """
     content = flask.request.get_json()
-    config_path = flask.current_app.config['CONFIG_PATH']
+    config_path = flask.current_app.config['DOMAIN_CONFIG_PATH']
 
     for _ in os.listdir(config_path):
 
@@ -215,3 +236,6 @@ def enable_domain(name: str):
                     os.rename(os.path.join(config_path, _), os.path.join(config_path, _ + '.disabled'))
 
     return flask.make_response({'success': True}), 200
+
+
+

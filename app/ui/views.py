@@ -11,6 +11,7 @@ def index():
     :return: Rendered HTML document.
     :rtype: str
     """
-    nginx_path = flask.current_app.config['NGINX_PATH']
-    config = [f for f in os.listdir(nginx_path) if os.path.isfile(os.path.join(nginx_path, f))]
+    nginx_path = flask.current_app.config['MAIN_CONFIG_PATH']
+    #config = [f for f in os.listdir(nginx_path) if os.path.isfile(os.path.join(nginx_path, f))]
+    config = [f for f in os.listdir(nginx_path) if f == "nginx.conf" ]
     return flask.render_template('index.html', config=config)
