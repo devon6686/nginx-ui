@@ -90,18 +90,48 @@ def post_env_config(name: str):
     return flask.make_response({'success': True}), 200
 
 
-@api.route('/ng-reload', methods=['PUT'])
-def reload_nginx():
+@api.route('/sync/<env>', methods=['POST'])
+def sync_conf(env: str):
+    """
+    sync domain config to correspond nginx host
+    :param env: environment name
+    :type env: str
+    """
+    nginx_host = flask.current_app.config['NGINX_HOST_MAP'].get(env)
+    local_env_dir = os.path.join(flask.current_app.config['NGINX_PATH'], env,
+                                 flask.current_app.config['DOMAIN_CONFIG_DIR'])
+    remote_domain_dir = flask.current_app.config['REMOTE_NGINX_DOMAIN_DIR']
+    sync_cmd = f"scp {local_env_dir}/*.conf stops@{nginx_host}:{remote_domain_dir}"
+    # print(sync_cmd)
+    ret = subprocess.run(sync_cmd, shell=True, stderr=subprocess.PIPE)
+    if ret.returncode == 0:
+        subprocess.run(sync_cmd, shell=True)
+        flask.jsonify({'success': True}), 200
+    else:
+        flask.jsonify({'success': False}), 400
+
+
+@api.route('/reload/<env>', methods=['POST'])
+def reload_nginx(env: str):
+    """
+    :param env: environment name
+    :type env: str
+    """
     nginx_sbin_path = flask.current_app.config['NGINX_SBIN']
     nginx_sbin = os.path.join(nginx_sbin_path, 'nginx')
-    check_cmd = f"{nginx_sbin} -t"
-    reload_cmd = f"{nginx_sbin} -s reload"
-    ret = subprocess.run(check_cmd, shell=True, capture_output=True)
+    nginx_host = flask.current_app.config['NGINX_HOST_MAP'].get(env)
+    check_cmd = f"ssh stops@{nginx_host} 'sudo {nginx_sbin} -t'"
+    reload_cmd = f"ssh stops@{nginx_host} 'sudo {nginx_sbin} -s reload'"
+    # ret = subprocess.run(check_cmd, shell=True, capture_output=True) //3.6+版本支持
+    print(nginx_host, check_cmd)
+    #  3.6版本不支持capture_output
+    ret = subprocess.run(check_cmd, shell=True, stderr=subprocess.PIPE)
+
     if ret.returncode == 0:
         subprocess.run(reload_cmd, shell=True)
-        return flask.make_response({'ret': 'success'}), 200
+        flask.jsonify({'success': True}), 200
     else:
-        return flask.make_response({'ret': str(ret.stderr)}), 400
+        flask.jsonify({'success': False}), 400
 
 
 @api.route('/domains', methods=['GET'])

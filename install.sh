@@ -59,4 +59,4 @@ else
    { error "failed to install python3 module"; exit 1; }
 fi
 
-h2 "Remember modify NGINX_PATH in config.py!"
+h2 "Remember modify CONFIG in config.py!"

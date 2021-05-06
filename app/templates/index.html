@@ -42,9 +42,10 @@
                     Main Config
                     <i class="dropdown icon"></i>
                     <div class="menu">
-                        {% for name in config %}
-                        <div class="config item">{{ name }}</div>
-                        {% endfor %}
+<!--                        {% for name in config %}-->
+<!--                        <div class="config item">{{ name }}</div>-->
+<!--                        {% endfor %}-->
+                        <div class="config item">{{ config }}</div>
                     </div>
                 </div>
 
@@ -59,6 +60,14 @@
                         <input type="text" placeholder="shantaijk.cn" id="add_env_domain">
                         <button class="ui green button" onclick="add_env_domain()" tabindex="0">
                             Add
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mobile hidden right item">
+                    <div class="ui action">
+                        <button class="ui red button" id="sync-button" onclick="sync_conf()" tabindex="0">
+                            Sync
                         </button>
                     </div>
                 </div>
